@@ -50,9 +50,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     addr.sin_port = 20;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    connect(s, (LPSOCKADDR)&addr, sizeof(addr));
+    if (connect(s, (LPSOCKADDR)&addr, sizeof(addr)) == -1)
+        return 0;
 
-
+    send(s, "æ»≥Á«œººø‰ Server!", 19, 0);
+    
     closesocket(s);
     WSACleanup();
     return 0;

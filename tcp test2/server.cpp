@@ -33,6 +33,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // TODO: 여기에 코드를 입력합니다.
     WSADATA wsadata;
     SOCKET	s;
+    TCHAR   message[300];
     SOCKADDR_IN		addr = { 0 };
 
     // 전역 문자열을 초기화합니다.
@@ -56,9 +57,25 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     do
     {
         SOCKADDR_IN		c_addr;
+        char            buffer[100];
+#ifdef _UNICODE
+        TCHAR           wbuffer[100];
+#endif // _UNICODE
+        int             msgLen;
         int				size = sizeof(c_addr);
-        accept(s, (LPSOCKADDR)&c_addr, &size);
-    } while (MessageBox(NULL, _T("클라이언트 접속을 확인했습니다. 서버를 종료하시겠습니까?"), _T("Server 메세지"), MB_YESNO) == IDNO);
+        SOCKET          cs = accept(s, (LPSOCKADDR)&c_addr, &size);
+        msgLen = recv(cs, buffer, 100, 0);
+        buffer[msgLen] = NULL;
+#ifdef _UNICODE
+        msgLen = MultiByteToWideChar(CP_ACP, 0, buffer, strlen(buffer), NULL, NULL);
+        MultiByteToWideChar(CP_ACP, 0, buffer, strlen(buffer), wbuffer, msgLen);
+        wbuffer[msgLen] = NULL;
+        _stprintf_s(message, _T("클라이언트 메세지: %s, 서버를 종료하시겠습니까?"), wbuffer);
+#else
+        sprintf_s(message, _T("클라이언트 메세지: %s, 서버를 종료하시겠습니까?"), buffer);
+#endif // _UNICODE
+
+    } while (MessageBox(NULL, message, _T("Server 메세지"), MB_YESNO) == IDNO);
 
     closesocket(s);
     WSACleanup();
