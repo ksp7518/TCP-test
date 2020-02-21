@@ -153,8 +153,44 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static WSADATA  wsadata;
+    static SOCKET   s, cs;
+    static TCHAR    msg[200];
+    static SOCKADDR_IN  addr = { 0 }, c_addr;
+    int    size, msgLen;
+    char   buffer[100];
+
+
     switch (message)
     {
+    case WM_CREATE:
+        WSAStartup(MAKEWORD(2, 2), &wsadata);
+        s = socket(AF_INET, SOCK_STREAM, 0);
+        addr.sin_family = AF_INET;
+        addr.sin_port = 20;
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+        bind(s, (LPSOCKADDR)&addr, sizeof(addr));
+
+        if (listen(s, 5) == -1)
+            return 0;
+        size = sizeof(c_addr);
+
+        do
+        {
+            cs = accept(s, (LPSOCKADDR)&c_addr, &size);
+        } while (cs == INVALID_SOCKET);
+        msgLen = recv(cs, buffer, 100, 0);
+        buffer[msgLen] = NULL;
+#ifdef _UNICODE
+        msgLen = MultiByteToWideChar(CP_ACP, 0, buffer, strlen(buffer), NULL, NULL);
+        MultiByteToWideChar(CP_ACP, 0, buffer, strlen(buffer), msg, msgLen);
+        msg[msgLen] = NULL;
+#else
+        sprcpy_s(msg, buffer);
+#endif // _UNICODE
+
+
+        break;
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
@@ -177,10 +213,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
             // TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
+            TextOut(hdc, 0, 0, msg, (int)_tcslen(msg));
             EndPaint(hWnd, &ps);
         }
         break;
     case WM_DESTROY:
+        closesocket(s);
+        WSACleanup();
         PostQuitMessage(0);
         break;
     default:

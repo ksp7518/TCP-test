@@ -131,8 +131,26 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static WSADATA wsadata;
+    static SOCKET  s;
+    static SOCKADDR_IN addr = { 0 };
+
     switch (message)
     {
+    case WM_CREATE:
+        WSAStartup(MAKEWORD(2, 2), &wsadata);
+        s = socket(AF_INET, SOCK_STREAM, 0);
+        addr.sin_family = AF_INET;
+        addr.sin_port = 20;
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+        if (connect(s, (LPSOCKADDR)&addr, sizeof(addr)) == -1)
+            return 0;
+        break;
+    case WM_KEYDOWN:
+        send(s, "¾È³ç server!!!!", 16, 0);
+        break;
+
     case WM_COMMAND:
     {
         int wmId = LOWORD(wParam);
@@ -159,6 +177,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     break;
     case WM_DESTROY:
+        closesocket(s);
+        WSACleanup();
         PostQuitMessage(0);
         break;
     default:
