@@ -8,7 +8,7 @@
 #include "tcp test2.h"
 
 
-
+#define WM_ASYNC    WM_USER+2
 #define MAX_LOADSTRING 100
 
 // 전역 변수:
@@ -38,6 +38,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // 전역 문자열을 초기화합니다.
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_TCPTEST2, szWindowClass, MAX_LOADSTRING);
+
     MyRegisterClass(hInstance);
 
     // 애플리케이션 초기화를 수행합니다:
@@ -46,7 +47,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         return FALSE;
     }
 
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_PROJECT1));
+    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_TCPTEST2));
 
     MSG msg;
 
@@ -150,9 +151,14 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    HDC  hdc;
+    PAINTSTRUCT ps;
     static WSADATA wsadata;
-    static SOCKET  s;
+    static SOCKET  s,cs;
     static SOCKADDR_IN addr = { 0 };
+    static TCHAR    msg[200];
+    int    msgLen;
+    char   buffer[100];
 
     switch (message)
     {
@@ -161,7 +167,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         s = socket(AF_INET, SOCK_STREAM, 0);
         addr.sin_family = AF_INET;
         addr.sin_port = 20;
-        addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+        addr.sin_addr.s_addr = inet_addr("192.168.123.102");
+
+        WSAAsyncSelect(s, hWnd, WM_ASYNC, FD_ACCEPT);
 
         if (connect(s, (LPSOCKADDR)&addr, sizeof(addr)) == -1)
             return 0;
@@ -170,6 +178,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         send(s, "안녕 server!!!!", 16, 0);
         break;
 
+    case WM_ASYNC:
+        switch (lParam)
+        {
+
+        case FD_READ:
+            msgLen = recv(cs, buffer, 100, 0);
+            buffer[msgLen] = NULL;
+#ifdef _UNICODE
+            msgLen = MultiByteToWideChar(CP_ACP, 0, buffer, strlen(buffer), NULL, NULL);
+            MultiByteToWideChar(CP_ACP, 0, buffer, strlen(buffer), msg, msgLen);
+            msg[msgLen] = NULL;
+#else
+            sprcpy_s(msg, buffer);
+#endif // _UNICODE 
+            InvalidateRgn(hWnd, NULL, TRUE);
+            break;
+        default:
+            break;
+        }
+        break;
     case WM_COMMAND:
     {
         int wmId = LOWORD(wParam);
@@ -189,12 +217,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     break;
     case WM_PAINT:
     {
-        PAINTSTRUCT ps;
+      
         HDC hdc = BeginPaint(hWnd, &ps);
         // TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
+        TextOut(hdc, 0, 0, msg, (int)_tcslen(msg));
         EndPaint(hWnd, &ps);
     }
     break;
+    case WM_KEYDOWN:
+        if (cs == INVALID_SOCKET)
+            break;
+        send(cs, "안녕 server!", 13, 0);
+        break;
     case WM_DESTROY:
         closesocket(s);
         WSACleanup();
